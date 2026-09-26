@@ -2,24 +2,17 @@ import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import app from "./app";
 import { env } from "./utils/env";
-import logger, { wsLog } from "./utils/logger";
+import logger from "./utils/logger";
+import { GameManager } from "./GameManager";
 
 // Express (HTTP) and WebSocket share a single HTTP server —
 // one port for everything, simpler behind a reverse proxy.
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws" });
+const gameManager = new GameManager();
 
-// Placeholder handler — real matchmaking/game logic lands in Phase 3 (GameManager).
 wss.on("connection", (ws: WebSocket) => {
-  wsLog.info("client connected");
-
-  ws.on("message", (data) => {
-    wsLog.debug({ data: data.toString() }, "message received");
-  });
-
-  ws.on("close", () => {
-    wsLog.info("client disconnected");
-  });
+  gameManager.addConnection(ws);
 });
 
 server.listen(env.PORT, () => {
@@ -30,7 +23,8 @@ server.listen(env.PORT, () => {
 function gracefulShutdown(signal: string) {
   logger.info(`${signal} received — shutting down gracefully`);
 
-  wss.close(() => wsLog.info("WebSocket server closed"));
+  gameManager.shutdown();
+  wss.close(() => logger.info("WebSocket server closed"));
 
   server.close(() => {
     logger.info("HTTP server closed — goodbye");
