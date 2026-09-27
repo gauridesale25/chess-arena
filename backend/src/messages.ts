@@ -1,18 +1,21 @@
-// ── WebSocket message types ──────────────────────────────────────────
-// Shared string constants for the "type" field of every WS message.
-// The frontend mirrors these exactly for routing.
+// ── WebSocket Message Types ─────────────────────────────────────────
+// These string constants are the "type" field in every WS message.
+// Both the frontend and backend use matching constants for routing.
 
-// Matchmaking / lifecycle
-export const JOIN_QUEUE = "join_queue";
-export const GAME_START = "game_start";
+// Core game lifecycle
+export const INIT_GAME = "init_game";
+export const MOVE = "move";
 export const GAME_OVER = "game_over";
 
-// Gameplay
-export const MOVE = "move";
+// In-game communication
+export const CHAT_MESSAGE = "chat_message";
 
-// Connection health
-export const OPPONENT_DISCONNECTED = "opponent_disconnected";
-export const OPPONENT_RECONNECTED = "opponent_reconnected";
+// Player actions
+export const RESIGN = "resign";
+export const OFFER_DRAW = "offer_draw";
+export const DRAW_RESPONSE = "draw_response";
+
+// Reconnection — when a player refreshes or drops connection mid-game
 export const RECONNECT = "reconnect";
 export const GAME_STATE = "game_state";
 

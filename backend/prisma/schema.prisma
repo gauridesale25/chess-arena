@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  Email                         String @unique
+  Password                      String
+  id                            Int    @id @default(autoincrement())
+  Rating                        Int?   @default(1200)
+  Game_Game_blackPlayerIdToUser Game[] @relation("Game_blackPlayerIdToUser")
+  Game_Game_whitePlayerIdToUser Game[] @relation("Game_whitePlayerIdToUser")
+  Game_Game_winnerIdToUser      Game[] @relation("Game_winnerIdToUser")
+}
+
+model Game {
+  id                            String   @id @default(uuid())
+  whitePlayerId                 Int?
+  blackPlayerId                 Int?
+  winnerId                      Int?
+  result                        String
+  pgn                           String
+  createdAt                     DateTime @default(now())
+  endedAt                       DateTime?
+  timeControl                   Int      @default(300000)
+  endReason                     String?
+  finalFen                      String?
+  User_Game_blackPlayerIdToUser User?    @relation("Game_blackPlayerIdToUser", fields: [blackPlayerId], references: [id])
+  User_Game_whitePlayerIdToUser User?    @relation("Game_whitePlayerIdToUser", fields: [whitePlayerId], references: [id])
+  User_Game_winnerIdToUser      User?    @relation("Game_winnerIdToUser", fields: [winnerId], references: [id])
+  moves                         Move[]
+}
+
+// Each move in a game, stored for replay and review.
+// gameId links back to the parent Game.
+model Move {
+  id        Int      @id @default(autoincrement())
+  gameId    String
+  moveNum   Int
+  from      String
+  to        String
+  san       String
+  fen       String
+  timestamp DateTime @default(now())
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+}
