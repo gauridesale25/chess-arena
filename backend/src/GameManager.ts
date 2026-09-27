@@ -1,8 +1,12 @@
 import { WebSocket } from "ws";
 import crypto from "crypto";
 import {
-  JOIN_QUEUE, MOVE, RECONNECT, ERROR,
-  OPPONENT_DISCONNECTED, OPPONENT_RECONNECTED,
+  JOIN_QUEUE,
+  MOVE,
+  RECONNECT,
+  ERROR,
+  OPPONENT_DISCONNECTED,
+  OPPONENT_RECONNECTED,
 } from "./messages";
 import { Game, type Color } from "./Game";
 import { wsLog } from "./utils/logger";
@@ -42,10 +46,12 @@ export class GameManager {
   private socketToMeta: Map<WebSocket, ConnMeta> = new Map();
 
   // reconnect token → { gameId, color } so a fresh socket can rejoin.
-  private tokenToGame: Map<string, { gameId: string; color: Color }> = new Map();
+  private tokenToGame: Map<string, { gameId: string; color: Color }> =
+    new Map();
 
   private pendingUser: PendingUser | null = null;
-  private disconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private disconnectTimers: Map<string, ReturnType<typeof setTimeout>> =
+    new Map();
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
@@ -55,7 +61,10 @@ export class GameManager {
   // ── PUBLIC: addConnection ────────────────────────────────────────
   // Called from index.ts for every new WebSocket upgrade.
   addConnection(socket: WebSocket) {
-    const meta: ConnMeta = { id: crypto.randomUUID(), name: `Player-${crypto.randomUUID().slice(0, 4)}` };
+    const meta: ConnMeta = {
+      id: crypto.randomUUID(),
+      name: `Player-${crypto.randomUUID().slice(0, 4)}`,
+    };
     this.socketToMeta.set(socket, meta);
     (socket as TrackedSocket).__alive = true;
 
@@ -95,13 +104,22 @@ export class GameManager {
           this.handleJoinQueue(socket);
           break;
         case MOVE:
-          this.handleMove(socket, message.payload as { from: string; to: string; promotion?: string });
+          this.handleMove(
+            socket,
+            message.payload as { from: string; to: string; promotion?: string },
+          );
           break;
         case RECONNECT:
-          this.handleReconnect(socket, (message.payload as { gameId?: string; token?: string })?.token);
+          this.handleReconnect(
+            socket,
+            (message.payload as { gameId?: string; token?: string })?.token,
+          );
           break;
         default:
-          this.safeSend(socket, { type: ERROR, payload: { message: "Unknown message type" } });
+          this.safeSend(socket, {
+            type: ERROR,
+            payload: { message: "Unknown message type" },
+          });
       }
     });
 
@@ -124,10 +142,16 @@ export class GameManager {
     if (this.pendingUser) {
       if (this.pendingUser.socket === socket) return; // already queued
 
-      const white = { socket: this.pendingUser.socket, token: crypto.randomUUID(), name: this.pendingUser.name };
+      const white = {
+        socket: this.pendingUser.socket,
+        token: crypto.randomUUID(),
+        name: this.pendingUser.name,
+      };
       const black = { socket, token: crypto.randomUUID(), name: meta.name };
 
-      const game = new Game(white, black, 5 * 60 * 1000, (endedGame) => this.onGameEnd(endedGame));
+      const game = new Game(white, black, 5 * 60 * 1000, (endedGame) =>
+        this.onGameEnd(endedGame),
+      );
 
       this.games.set(game.id, game);
       this.socketToGame.set(white.socket, game);
@@ -135,7 +159,10 @@ export class GameManager {
       this.tokenToGame.set(white.token, { gameId: game.id, color: "white" });
       this.tokenToGame.set(black.token, { gameId: game.id, color: "black" });
 
-      wsLog.info({ gameId: game.id, white: white.name, black: black.name }, "match created");
+      wsLog.info(
+        { gameId: game.id, white: white.name, black: black.name },
+        "match created",
+      );
       this.pendingUser = null;
     } else {
       this.pendingUser = { socket, id: meta.id, name: meta.name };
@@ -143,7 +170,10 @@ export class GameManager {
     }
   }
 
-  private handleMove(socket: WebSocket, move: { from: string; to: string; promotion?: string }) {
+  private handleMove(
+    socket: WebSocket,
+    move: { from: string; to: string; promotion?: string },
+  ) {
     this.socketToGame.get(socket)?.makeMove(socket, move);
   }
 
@@ -168,7 +198,8 @@ export class GameManager {
     this.socketToGame.set(socket, game);
     this.safeSend(socket, game.getFullState(token));
 
-    const opponentSocket = color === "white" ? game.black.socket : game.white.socket;
+    const opponentSocket =
+      color === "white" ? game.black.socket : game.white.socket;
     this.safeSend(opponentSocket, { type: OPPONENT_RECONNECTED, payload: {} });
 
     wsLog.info({ gameId: game.id, color }, "player reconnected");
@@ -182,14 +213,18 @@ export class GameManager {
     if (game && !game.isEnded()) {
       const color: Color = game.white.socket === socket ? "white" : "black";
       const token = color === "white" ? game.white.token : game.black.token;
-      const opponentSocket = color === "white" ? game.black.socket : game.white.socket;
+      const opponentSocket =
+        color === "white" ? game.black.socket : game.white.socket;
 
       this.safeSend(opponentSocket, {
         type: OPPONENT_DISCONNECTED,
         payload: { gracePeriodMs: DISCONNECT_GRACE_MS },
       });
 
-      wsLog.info({ gameId: game.id, color }, "player disconnected, grace period started");
+      wsLog.info(
+        { gameId: game.id, color },
+        "player disconnected, grace period started",
+      );
 
       const timer = setTimeout(() => {
         this.disconnectTimers.delete(token);
@@ -209,11 +244,14 @@ export class GameManager {
 
     // Keep tokens/game around briefly so a late "reconnect" can still
     // fetch the final state, then drop everything.
-    setTimeout(() => {
-      this.games.delete(game.id);
-      this.tokenToGame.delete(game.white.token);
-      this.tokenToGame.delete(game.black.token);
-    }, 5 * 60 * 1000);
+    setTimeout(
+      () => {
+        this.games.delete(game.id);
+        this.tokenToGame.delete(game.white.token);
+        this.tokenToGame.delete(game.black.token);
+      },
+      5 * 60 * 1000,
+    );
   }
 
   // ── Heartbeat ──────────────────────────────────────────────────────
