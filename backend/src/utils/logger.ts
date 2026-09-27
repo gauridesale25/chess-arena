@@ -10,5 +10,6 @@ const logger = pino({
 });
 
 export const wsLog = logger.child({ scope: "ws" });
+export const gameLog = logger.child({ scope: "game" });
 
 export default logger;
