@@ -1,31 +1,9 @@
 @import "tailwindcss";
 
-/* ─── chessss custom theme ───────────────────────────────────
-   Warm amber & deep teal palette — replaces the reference
-   project's grayscale glassmorphism look. */
-@theme {
-  --color-board-light: hsl(38 42% 86%);
-  --color-board-dark: hsl(166 38% 28%);
-  --color-board-select: hsl(45 93% 58%);
-  --color-board-move: hsl(166 60% 45%);
-  --color-app-bg: hsl(200 30% 8%);
-  --color-app-panel: hsl(200 25% 13%);
-  --color-app-border: hsl(200 20% 22%);
-  --color-app-accent: hsl(45 93% 58%);
-  --color-app-text: hsl(40 20% 92%);
-  --color-app-text-muted: hsl(200 10% 60%);
-}
-
 body {
-  font-family:
-    "Inter",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-app-bg);
-  color: var(--color-app-text);
-  margin: 0;
+  background-color: #050505;
+  color: #ffffff;
 }

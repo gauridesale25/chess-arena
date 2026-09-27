@@ -1,19 +1,13 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { useAuth } from './AuthContext';
 
+// ── WebSocket URL ───────────────────────────────────────────────────
 // Uses the same port as the HTTP server, with /ws path.
-// Override via VITE_WS_URL for other environments.
-const WS_URL =
-  import.meta.env.VITE_WS_URL ||
-  (window.location.protocol === "https:" ? "wss://" : "ws://") +
-    (import.meta.env.DEV ? "localhost:3000" : window.location.host) +
-    "/ws";
-
+// In production, change this via VITE_WS_URL env var.
+const WS_URL = import.meta.env.VITE_WS_URL ||
+  (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
+  (import.meta.env.DEV ? 'localhost:3000' : window.location.host) + '/ws';
 const MAX_DELAY = 10_000;
 
 interface SocketContextType {
@@ -26,24 +20,37 @@ const SocketContext = createContext<SocketContextType>({
   isConnected: false,
 });
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const useSocketContext = () => useContext(SocketContext);
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const retriesRef = useRef(0);
   const timerRef = useRef<number | null>(null);
   const unmountedRef = useRef(false);
+  const replacedRef = useRef(false);
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     unmountedRef.current = false;
+    replacedRef.current = false;
+
+    // Only connect if the user is logged in.
+    // Auth is required for all WebSocket connections.
+    const token = localStorage.getItem("token");
+    if (!user || !token) {
+      // Not logged in — don't even try to connect.
+      setSocket(null);
+      setIsConnected(false);
+      return;
+    }
 
     function connect() {
       if (unmountedRef.current) return;
 
-      // Avoid duplicate connections (e.g. React StrictMode double-invoking effects).
+      // Prevent duplicate connections (e.g. React Strict Mode double-fires useEffect).
+      // If we already have a socket that's connecting or open, don't create another.
       if (
         wsRef.current &&
         (wsRef.current.readyState === WebSocket.CONNECTING ||
@@ -52,8 +59,27 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const ws = new WebSocket(WS_URL);
+      const currentToken = localStorage.getItem("token");
+      if (!currentToken) return;
+
+      const url = `${WS_URL}?token=${currentToken}`;
+      const ws = new WebSocket(url);
       wsRef.current = ws;
+
+      const handleMessage = (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "replaced") {
+            replacedRef.current = true;
+            console.warn("WebSocket connection replaced by new session — closing self");
+            ws.close(4002, "Replaced by new connection");
+          }
+        } catch {
+          // Ignore
+        }
+      };
+
+      ws.addEventListener("message", handleMessage);
 
       ws.onopen = () => {
         if (unmountedRef.current) {
@@ -65,20 +91,35 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         setIsConnected(true);
       };
 
-      ws.onclose = () => {
-        if (wsRef.current === ws) wsRef.current = null;
-        if (unmountedRef.current) return;
+      ws.onclose = (event) => {
+        ws.removeEventListener("message", handleMessage);
 
+        // Clear the ref if this is still the current socket.
+        if (wsRef.current === ws) {
+          wsRef.current = null;
+        }
+
+        if (unmountedRef.current) return;
         setSocket(null);
         setIsConnected(false);
 
-        // Exponential backoff so a dead server doesn't get flooded with retries.
+        // Code 4001 = auth failure.
+        // Code 4002 = duplicate connection/replaced by new connection.
+        // Or if we received a "replaced" message.
+        if (event.code === 4001 || event.code === 4002 || replacedRef.current) {
+          console.warn(`WebSocket closed (code ${event.code}, replaced: ${replacedRef.current}) — not retrying`);
+          return;
+        }
+
+        // Exponential backoff to avoid flooding the server on disconnect.
         const delay = Math.min(1000 * 2 ** retriesRef.current, MAX_DELAY);
         retriesRef.current++;
         timerRef.current = window.setTimeout(connect, delay);
       };
 
-      ws.onerror = () => ws.close();
+      ws.onerror = () => {
+        ws.close();
+      };
     }
 
     connect();
@@ -89,12 +130,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      wsRef.current?.close();
-      wsRef.current = null;
+      // Close the ref'd socket directly — no state setter gymnastics needed.
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
       setSocket(null);
       setIsConnected(false);
     };
-  }, []);
+  }, [user]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>
