@@ -2,8 +2,8 @@
   "name": "chess-monorepo",
   "private": true,
   "scripts": {
-    "install:all": "npm install --prefix backend1 && npm install --prefix frontend",
-    "build": "npm run install:all && npm run build --prefix backend1 && npm run build --prefix frontend",
-    "start": "node backend1/dist/index.js"
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "build": "npm run install:all && npm run build --prefix backend && npm run build --prefix frontend",
+    "start": "node backend/dist/index.js"
   }
 }

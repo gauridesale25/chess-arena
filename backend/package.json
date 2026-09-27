@@ -16,6 +16,7 @@
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.12.0",
     "bcrypt": "^6.0.0",
+    "chess-monorepo": "file:..",
     "chess.js": "^1.4.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
